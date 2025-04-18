@@ -9,13 +9,17 @@ import {
   Typography,
   Box,
   Alert,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import jwt_decode from 'jwt-decode';
 
 function Login() {
   const { setAuthData } = useContext(AuthContext);
   const navigate = useNavigate();
   const [form, setForm] = useState({ username: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -23,37 +27,39 @@ function Login() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleClickShowPassword = () => {
+    setShowPassword((prev) => !prev);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
-  
+
     try {
       const response = await authService.login(form);
       const token = response.data?.token;
-  
+
       if (!token) {
         throw new Error('Токен отсутствует в ответе сервера');
       }
-  
+
       const decodedUser = jwt_decode(token);
       const role = decodedUser['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
-  
+
       if (!role) {
         throw new Error('Роль отсутствует в токене');
       }
-  
+
       setAuthData({ token, user: { ...decodedUser, role } });
       navigate(role === 'Admin' ? '/admin' : '/user');
     } catch (err) {
       console.error('Ошибка авторизации:', err);
-      setError(err.message || 'Произошла ошибка');
+      setError('Неверный логин или пароль');
     } finally {
       setIsSubmitting(false);
     }
   };
-  
-  
 
   return (
     <Container maxWidth="sm">
@@ -89,11 +95,20 @@ function Login() {
             fullWidth
             label="Пароль"
             name="password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={form.password}
             onChange={handleChange}
             margin="normal"
             required
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={handleClickShowPassword} edge="end">
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
           <Button
             variant="contained"

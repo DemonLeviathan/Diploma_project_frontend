@@ -14,6 +14,7 @@ TableContainer,
 TableHead,
 TableRow,
 Alert,
+Snackbar,
 Select,
 MenuItem,
 FormControl,
@@ -40,6 +41,14 @@ const [activityTypes, setActivityTypes] = useState([]);
 const [filteredActivities, setFilteredActivities] = useState([]); 
 const [call, setCall] = useState(null); 
 const [goals, setGoals] = useState([]);
+const [snackbarOpen, setSnackbarOpen] = useState(false);
+const [snackbarMessage, setSnackbarMessage] = useState('');
+const [snackbar, setSnackbar] = useState({
+  open: false,
+  message: '',
+  severity: 'info', 
+});
+
 const [newUserData, setNewUserData] = useState({
   activity_name: '',
   weight: '',
@@ -400,10 +409,11 @@ const getCall = async (frequency) => {
     });
     console.log('Получен вызов:', response.data);
 
-    setCall(response.data); 
+    setCall(response.data);
+    setSnackbar({ open: true, message: 'Вызов успешно получен!', severity: 'success' });
   } catch (error) {
     console.error('Ошибка получения вызова:', error.response?.data || error.message);
-    alert('Не удалось получить вызов.');
+    setSnackbar({ open: true, message: 'Не удалось получить вызов.', severity: 'error' });
   }
 };
 
@@ -419,11 +429,20 @@ const handleCallResponse = async (accept) => {
 
     console.log(`Вызов ${accept ? 'принят' : 'отклонён'}`, response.data);
 
-    alert(`Вызов ${accept ? 'принят' : 'отклонён'}`);
-    setCall(null); 
+    setSnackbar({
+      open: true,
+      message: `Вызов ${accept ? 'принят' : 'отклонён'}`,
+      severity: 'success',
+    });
+
+    setCall(null);
   } catch (error) {
     console.error('Ошибка обработки вызова:', error.response?.data || error.message);
-    alert('Не удалось обработать вызов.');
+    setSnackbar({
+      open: true,
+      message: 'Не удалось обработать вызов.',
+      severity: 'error',
+    });
   }
 };
 
@@ -471,6 +490,21 @@ return (
 
     {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>} {}
+
+    <Snackbar
+      open={snackbar.open}
+      autoHideDuration={4000}
+      onClose={() => setSnackbar({ ...snackbar, open: false })}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    >
+      <Alert
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        severity={snackbar.severity}
+        sx={{ width: '100%' }}
+      >
+        {snackbar.message}
+      </Alert>
+    </Snackbar>
 
     {/* Получение вызовов */}
     <Box sx={{ mb: 4 }}>
