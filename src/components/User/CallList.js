@@ -17,8 +17,17 @@ import {
   Select,
   MenuItem,
   Alert,
+  Chip,
 } from '@mui/material';
 import api from '../../services/api';
+
+const statusMap = {
+  completed: { label: 'Выполнено', color: 'black', bgcolor: 'success.light' },
+  failed: { label: 'Не выполнено', color: 'black', bgcolor: 'error.light' },
+  accepted: { label: 'Принято', color: 'black', bgcolor: 'info.light' },
+  rejected: { label: 'Отклонено', color: 'black', bgcolor: 'warning.light' },
+  pending: { label: 'Ожидает', color: 'black', bgcolor: 'grey.200' },
+};
 
 const CallList = () => {
   const [calls, setCalls] = useState([]);
@@ -46,10 +55,9 @@ const CallList = () => {
         setCalls(response.data.calls || []);
       } catch (err) {
         console.error('Ошибка загрузки вызовов:', err);
+        setError('Не удалось загрузить вызовы.');
       }
     };
-
-    fetchCalls();
 
     const fetchFriends = async () => {
       try {
@@ -60,16 +68,18 @@ const CallList = () => {
         const userId = userResponse.data.user_id;
 
         const response = await api.get('/friendship/list', { params: { userId } });
-        setFriends(response.data || []);
+        setFriends(response.data.friends || []);
       } catch (err) {
-        console.error('Ошибка загрузки друзей:', err);
+        console.error('Ошибка загрузки друзей:', err.response?.data || err.message);
+        setError('Не удалось загрузить список друзей.');
+        setFriends([]);
       }
     };
 
+    fetchCalls();
     fetchFriends();
   }, []);
 
-  
   const getCurrentUserId = async () => {
     try {
       const username = localStorage.getItem('currentUser');
@@ -89,20 +99,20 @@ const CallList = () => {
         setError('Друг или вызов не выбраны.');
         return;
       }
-  
+
       const currentUserId = await getCurrentUserId();
       if (!currentUserId) throw new Error('Не удалось определить ID пользователя.');
-  
+
       const payload = {
         SenderId: currentUserId,
         ReceiverId: selectedFriendForChallenge.friendId,
         CallId: selectedCallForChallenge.call_id,
-        CallName: selectedCallForChallenge.call_name, 
-        Description: selectedCallForChallenge.description, 
+        CallName: selectedCallForChallenge.call_name,
+        Description: selectedCallForChallenge.description,
       };
-  
+
       console.log('Payload для отправки вызова:', payload);
-  
+
       const response = await api.post('/challenge/send', payload);
       console.log('Вызов успешно отправлен:', response.data);
       setSuccess('Вызов успешно отправлен.');
@@ -112,14 +122,13 @@ const CallList = () => {
       setError(err.response?.data?.title || 'Не удалось отправить вызов.');
     }
   };
-  
+
   const handleCloseChallengeModal = () => {
     setSelectedFriendForChallenge(null);
     setIsChallengeModalOpen(false);
     setError('');
     setSuccess('');
   };
-  
 
   const updateCallStatus = async (callId, newStatus) => {
     try {
@@ -147,14 +156,14 @@ const CallList = () => {
     <Box>
       {success && <Alert severity="success">{success}</Alert>}
       {error && <Alert severity="error">{error}</Alert>}
-      <TableContainer 
-      component={Paper}
-      sx={{
-        mt: 2,
-        mx: 'auto', 
-        width: '90%', 
-        maxWidth: '1200px', 
-      }}
+      <TableContainer
+        component={Paper}
+        sx={{
+          mt: 2,
+          mx: 'auto',
+          width: '90%',
+          maxWidth: '1200px',
+        }}
       >
         <Table>
           <TableHead>
@@ -172,7 +181,16 @@ const CallList = () => {
                 <TableCell>{call.call_name}</TableCell>
                 <TableCell>{call.description}</TableCell>
                 <TableCell>{call.call_date || 'Не указано'}</TableCell>
-                <TableCell>{call.status}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={statusMap[call.status]?.label || call.status}
+                    sx={{
+                      fontWeight: 'bold',
+                      color: statusMap[call.status]?.color || 'text.primary',
+                      bgcolor: statusMap[call.status]?.bgcolor || 'grey.100',
+                    }}
+                  />
+                </TableCell>
                 <TableCell align="center">
                   <Box display="flex" flexDirection="column" gap={1}>
                     <Button
@@ -214,77 +232,83 @@ const CallList = () => {
       </Box>
 
       <Modal
-  open={isChallengeModalOpen}
-  onClose={() => setIsChallengeModalOpen(false)}
-  aria-labelledby="send-challenge-modal"
-  aria-describedby="send-challenge-modal-description"
->
-  <Box
-    sx={{
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: 400,
-      bgcolor: 'background.paper',
-      boxShadow: 24,
-      p: 4,
-      borderRadius: 2,
-    }}
-  >
-    <Typography id="send-challenge-modal" variant="h6" component="h2">
-      Бросить вызов для вызова {selectedCallForChallenge?.call_name}
-    </Typography>
-
-    <Box sx={{ mt: 2 }}>
-      <Typography variant="subtitle1">Выберите друга:</Typography>
-      <FormControl fullWidth sx={{ mt: 1 }}>
-        <InputLabel id="select-friend-label">Друг</InputLabel>
-        <Select
-          labelId="select-friend-label"
-          id="select-friend"
-          value={selectedFriendForChallenge?.friendId || ''}
-          onChange={(e) => {
-            const selectedFriendId = e.target.value;
-            const selectedFriend = friends.find(
-              (friend) => friend.friendId === parseInt(selectedFriendId, 10)
-            );
-            console.log('Выбранный друг:', selectedFriend);
-            setSelectedFriendForChallenge(selectedFriend || null);
+        open={isChallengeModalOpen}
+        onClose={() => setIsChallengeModalOpen(false)}
+        aria-labelledby="send-challenge-modal"
+        aria-describedby="send-challenge-modal-description"
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 400,
+            bgcolor: 'background.paper',
+            boxShadow: 24,
+            p: 4,
+            borderRadius: 2,
           }}
         >
-          <MenuItem value="">
-            <em>Выберите друга</em>
-          </MenuItem>
-          {friends.map((friend) => (
-            <MenuItem key={friend.friendId} value={friend.friendId}>
-              {friend.friendName}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-    </Box>
+          <Typography id="send-challenge-modal" variant="h6" component="h2">
+            Бросить вызов для вызова {selectedCallForChallenge?.call_name}
+          </Typography>
 
-    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-      <Button variant="outlined" onClick={() => setIsChallengeModalOpen(false)}>
-        Отмена
-      </Button>
-      <Button
-        variant="contained"
-        onClick={() => {
-          if (selectedFriendForChallenge && selectedCallForChallenge) {
-            handleSendChallenge();
-          } else {
-            console.error('Не выбран друг или вызов.');
-          }
-        }}
-      >
-        Отправить
-      </Button>
-    </Box>
-  </Box>
-</Modal>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1">Выберите друга:</Typography>
+            <FormControl fullWidth sx={{ mt: 1 }}>
+              <InputLabel id="select-friend-label">Друг</InputLabel>
+              <Select
+                labelId="select-friend-label"
+                id="select-friend"
+                value={selectedFriendForChallenge?.friendId || ''}
+                onChange={(e) => {
+                  const selectedFriendId = e.target.value;
+                  const selectedFriend = friends.find(
+                    (friend) => friend.friendId === parseInt(selectedFriendId, 10)
+                  );
+                  console.log('Выбранный друг:', selectedFriend);
+                  setSelectedFriendForChallenge(selectedFriend || null);
+                }}
+              >
+                <MenuItem value="">
+                  <em>Выберите друга</em>
+                </MenuItem>
+                {Array.isArray(friends) && friends.length > 0 ? (
+                  friends.map((friend) => (
+                    <MenuItem key={friend.friendId} value={friend.friendId}>
+                      {friend.friendName}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem disabled>
+                    Нет доступных друзей
+                  </MenuItem>
+                )}
+              </Select>
+            </FormControl>
+          </Box>
 
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            <Button variant="outlined" onClick={() => setIsChallengeModalOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => {
+                if (selectedFriendForChallenge && selectedCallForChallenge) {
+                  handleSendChallenge();
+                } else {
+                  console.error('Не выбран друг или вызов.');
+                  setError('Выберите друга и вызов.');
+                }
+              }}
+            >
+              Отправить
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
     </Box>
   );
 };
